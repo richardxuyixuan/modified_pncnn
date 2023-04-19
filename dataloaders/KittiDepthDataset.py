@@ -20,15 +20,15 @@ class KittiDepthDataset(Dataset):
     def __init__(self, kitti_depth_path, setname='train', transform=None, norm_factor=256, invert_depth=False,
                  load_rgb=False, kitti_rgb_path=None, rgb2gray=False, hflip=False):
 
-        self.kitti_depth_path = kitti_depth_path
-        self.setname = setname
-        self.transform = transform
-        self.norm_factor = norm_factor
-        self.invert_depth = invert_depth
-        self.load_rgb = load_rgb
-        self.kitti_rgb_path = kitti_rgb_path
-        self.rgb2gray = rgb2gray
-        self.hflip = hflip
+        self.kitti_depth_path = kitti_depth_path # home/user/Documents/carla_data/DataGenerator/data/test
+        self.setname = setname # 'train'
+        self.transform = transform # CenterCrop(size=(352, 1216))
+        self.norm_factor = norm_factor # 256
+        self.invert_depth = invert_depth # False
+        self.load_rgb = load_rgb # False
+        self.kitti_rgb_path = kitti_rgb_path # Not really used
+        self.rgb2gray = rgb2gray # True, but probably not really used
+        self.hflip = hflip # False
 
         if setname in ['train', 'val']:
             depth_path = os.path.join(self.kitti_depth_path, setname)

@@ -1,6 +1,6 @@
 {"args": "json",
 "exp": "pncnn",
-"workspace": "kitti2",
+"workspace": "kitti",
 "resume": null,
 "evaluate": null,
 "gpu": 1,

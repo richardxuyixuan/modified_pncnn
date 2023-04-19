@@ -11,7 +11,7 @@ class LaserScan:
     """Class that contains LaserScan with x,y,z,r"""
     EXTENSIONS_SCAN = ['.bin']
 
-    def __init__(self, project=False, H=64, W=1024, fov_up=3.0, fov_down=-25.0,DA=False,flip_sign=False,rot=False,drop_points=False):
+    def __init__(self, project=False, H=64, W=1024, fov_up=3.0, fov_down=-25.0,DA=False,flip_sign=False,rot=False,drop_points=False, six=False):
         self.project = project
         self.proj_H = H
         self.proj_W = W
@@ -21,6 +21,7 @@ class LaserScan:
         self.flip_sign = flip_sign
         self.rot = rot
         self.drop_points = drop_points
+        self.six = six
 
         self.reset()
 
@@ -81,11 +82,14 @@ class LaserScan:
 
         # if all goes well, open pointcloud
         scan = np.fromfile(filename, dtype=np.float32)
-        scan = scan.reshape((-1, 4))
+        if self.six:
+            scan = scan.reshape((-1, 6))
+        else:
+            scan = scan.reshape((-1, 4))
 
         # put in attribute
         points = scan[:, 0:3]  # get xyz
-        remissions = scan[:, 3]  # get remission
+        remissions = scan[:, -1]  # get remission
         if self.drop_points is not False:
             self.points_to_drop = np.random.randint(0, len(points)-1,int(len(points)*self.drop_points))
             points = np.delete(points,self.points_to_drop,axis=0)

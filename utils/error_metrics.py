@@ -5,7 +5,7 @@ import csv
 import numpy as np
 
 
-kitti_metrics = ['mae', 'absrel', 'mse', 'rmse', 'imae',  'irmse',
+kitti_metrics = ['mae', 'absrel', 'mse', 'rmse',
                 'delta1', 'delta2', 'delta3']
 nyu_metrics = ['mae', 'absrel', 'mse', 'rmse', 'delta1', 'delta2', 'delta3']
 flat_metrics = ['mae', 'mse', 'rmse']
@@ -13,6 +13,8 @@ flat_metrics = ['mae', 'mse', 'rmse']
 
 def create_error_metric(args):
     if args.dataset == 'kitti_depth':
+        return KittiErrorMetrics(args.norm_factor)
+    elif args.dataset == 'carla':
         return KittiErrorMetrics(args.norm_factor)
     elif args.dataset == 'nyudepthv2':
         return NyuErrorMetrics()
@@ -187,7 +189,7 @@ class LogFile(object):
         self.path_to_file = path_to_file
 
         # Define error metrics for the dataset
-        if args.dataset == 'kitti_depth' or args.dataset == 'vkitti' or args.dataset == 'kitti_odo':
+        if args.dataset == 'kitti_depth' or args.dataset == 'vkitti' or args.dataset == 'kitti_odo' or args.dataset == 'carla':
             self.field_names = kitti_metrics.copy()
         elif args.dataset == 'nyudepthv2' :
             self.field_names = nyu_metrics.copy()

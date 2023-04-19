@@ -36,12 +36,12 @@ def args_parser():
     parser = argparse.ArgumentParser(description='NConv')
 
     # Mode selection
-    parser.add_argument('--args', '-a', type=str, default='', choices=['defaults', 'json'],
+    parser.add_argument('--args', '-a', type=str, default='json', choices=['defaults', 'json'],
                         help='How to read args? (json file or dataset defaults)')
 
     parser.add_argument('--exp', '--e', help='Experiment name')
     
-    parser.add_argument('--workspace', '--ws', default='', type=str, help='Workspace name') 
+    parser.add_argument('--workspace', '--ws', default='kitti', type=str, help='Workspace name')
     
     parser.add_argument('--resume', default=None, type=str, metavar='PATH',
                         help='Path to latest checkpoint (default: none)')
@@ -53,7 +53,7 @@ def args_parser():
                         help='GPU ID (default: 0)')
 
 ########### General Dataset arguments ###########
-    parser.add_argument('--dataset', default='kitti_depth', choices=datasets_list,
+    parser.add_argument('--dataset', default='carla', choices=datasets_list,
                         help='Dataset to use: ' + ' | '.join(datasets_list) + ' (default: kitti_depth)')
     
     parser.add_argument('--dataset-path',  type=str, default='', help='Dataset path.')

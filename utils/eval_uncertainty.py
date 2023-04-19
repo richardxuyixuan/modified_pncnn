@@ -23,8 +23,10 @@ def eval_ause(model, dataloader, args, epoch, uncertainty_comp='a', show_plot=Fa
     all_var = torch.tensor([]).to(device)
     with torch.no_grad():  # Disable gradients computations
         for i, (input, target) in enumerate(dataloader):
-
-            input, target = input.to(device), target.to(device)
+            input['proj'] = input['proj'].to(device)
+            input['proj_mask'] = input['proj_mask'].to(device)
+            target['proj'] = target['proj'].to(device)
+            target['proj_mask'] = target['proj_mask'].to(device)
 
             torch.cuda.synchronize()  # Wait for all kernels to finish
 
@@ -49,18 +51,18 @@ def eval_ause(model, dataloader, args, epoch, uncertainty_comp='a', show_plot=Fa
                     torch.cat(((x1 - mu) ** 2 + c1, (x2 - mu) ** 2 + c2, (x3 - mu) ** 2 + c3, (x4 - mu) ** 2 + c4), 1),
                     1).unsqueeze(1)
 
-            for j in range(input.shape[0]):
+            for j in range(input['proj'].shape[0]):
                 #print('Processing image {}'.format(i * input.shape[0] + j))
-                t = target[j, 0, :, :]
-                pred = out[j, 0, :, :]
+                t = target['proj'][j, 0:5, :, :]
+                pred = out[j, 0:5, :, :]
 
                 if uncertainty_comp == 'a+e':
                     # pred = mu[j,0,:,:].cpu().numpy()
-                    var_alea = 1/(out[j, 1, :, :]+eps) #1 - out[j, 1, :, :]
-                    var_epi = s2[j, 0, :, :]
+                    var_alea = 1/(out[j, 5:, :, :]+eps) #1 - out[j, 1, :, :]
+                    var_epi = s2[j, 5:, :, :]
                     var = var_epi
                 else:
-                    var_alea = out[j, 1, :, :]
+                    var_alea = out[j, 5:, :, :]
                     var = var_alea
 
                 valid = (t != 0)

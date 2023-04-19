@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 
 # Kitti_dept
 from dataloaders.KittiDepthDataset import KittiDepthDataset
+from dataloaders.CarlaDataset import CarlaDataset
 
 # vKitti
 from .vKittiDataset import VKittiDataset, VkittiDatasetWrapper
@@ -18,8 +19,10 @@ def create_dataloader(args, eval_mode=False):
     print('==> Loading dataset "{}" .. \n'.format(args.dataset))
     if args.dataset_path == 'machine':
         get_data_set_path(args)
-
-    if args.dataset == 'kitti_depth':
+    if args.dataset == 'carla':
+        train_loader, val_loader = create_carla_dataloader(args, eval_mode)
+        val_set = args.val_ds
+    elif args.dataset == 'kitti_depth':
         train_loader, val_loader = create_kitti_depth_dataloader(args, eval_mode)
         val_set = args.val_ds
     elif args.dataset == 'vkitti':
@@ -34,6 +37,83 @@ def create_dataloader(args, eval_mode=False):
 
     print('- Found {} images in "{}" folder.\n'.format(len(val_loader.dataset), val_set))
     print('==> Dataset "{}" was loaded successfully!'.format(args.dataset))
+
+    return train_loader, val_loader
+
+
+################### CARLA  #########################
+def create_carla_dataloader(args, eval_mode=False):
+    # Input images are 16-bit, but only 15-bits are utilized, so we normalized the data to [0:1] using a normalization factor
+    norm_factor = args.norm_factor
+    invert_depth = args.train_disp
+    ds_dir = args.dataset_path
+    rgb_dir = args.raw_kitti_path
+    train_on = args.train_on
+    rgb2gray = args.rgb2gray
+    val_set = args.val_ds
+    data_aug = args.data_aug if hasattr(args, 'data_aug') else False
+    sensor = args.sensor
+    if args.modality == 'rgbd':
+        load_rgb = True
+    else:
+        load_rgb = False
+
+    train_loader = []
+    val_loader = []
+
+    if eval_mode is not True:
+        ###### Training Set ######
+        train_dataset = CarlaDataset(ds_dir, setname='train', transform=True,
+                                          norm_factor=norm_factor, invert_depth=invert_depth,
+                                          load_rgb=load_rgb, kitti_rgb_path=rgb_dir, rgb2gray=rgb2gray, hflip=data_aug, sensor=sensor)
+
+        # Select the desired number of images from the training set
+        if train_on != 'full':
+            import random
+            training_idxs = np.array(random.sample(range(0, len(train_dataset)), int(train_on)))
+            train_dataset.depth = train_dataset.depth[training_idxs]
+            train_dataset.gt = train_dataset.gt[training_idxs]
+
+        train_loader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size, num_workers=args.workers)
+    else:
+        ###### Training Set ######
+        train_dataset = CarlaDataset(ds_dir, setname='train', transform=False,
+                                          norm_factor=norm_factor, invert_depth=invert_depth,
+                                          load_rgb=load_rgb, kitti_rgb_path=rgb_dir, rgb2gray=rgb2gray, hflip=data_aug, sensor=sensor)
+
+        # Select the desired number of images from the training set
+        if train_on != 'full':
+            import random
+            training_idxs = np.array(random.sample(range(0, len(train_dataset)), int(train_on)))
+            train_dataset.depth = train_dataset.depth[training_idxs]
+            train_dataset.gt = train_dataset.gt[training_idxs]
+
+        train_loader = DataLoader(train_dataset, shuffle=False, batch_size=1, num_workers=args.workers)
+
+    # Validation set
+    if val_set == 'valid':
+        ###### Validation Set ######
+        val_dataset = CarlaDataset(ds_dir, setname='valid', transform=False,
+                                        norm_factor=norm_factor, invert_depth=invert_depth,
+                                        load_rgb=load_rgb, kitti_rgb_path=rgb_dir, rgb2gray=rgb2gray, hflip=data_aug,
+                                        sensor=sensor)
+
+        val_loader = DataLoader(val_dataset, shuffle=False, batch_size=1, num_workers=args.workers)
+
+    elif val_set == 'selval':
+        ###### Selected Validation set ######
+        val_dataset = CarlaDataset(ds_dir, setname='selval', transform=False,
+                                        norm_factor=norm_factor, invert_depth=invert_depth, load_rgb=load_rgb, kitti_rgb_path=rgb_dir, rgb2gray=rgb2gray, sensor=sensor)
+
+        val_loader = DataLoader(val_dataset, shuffle=False, batch_size=1, num_workers=args.workers)
+
+    elif val_set == 'test':
+        ###### Test set ######
+        val_dataset = CarlaDataset(ds_dir, setname='test', transform=False,
+                                        norm_factor=norm_factor, invert_depth=invert_depth,
+                                        load_rgb=load_rgb, kitti_rgb_path=rgb_dir, rgb2gray=rgb2gray, sensor=sensor)
+
+        val_loader = DataLoader(val_dataset, shuffle=False, batch_size=1, num_workers=args.workers)
 
     return train_loader, val_loader
 

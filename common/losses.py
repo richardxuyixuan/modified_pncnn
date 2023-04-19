@@ -106,6 +106,32 @@ class MaskedProbExpLoss(nn.Module):
         super().__init__()
 
     def forward(self, out, targets):
+        means = out[:, :5, :, :]
+        # means = out[:,0:1,:,:]
+        cout = out[:, 5:10, :, :]
+        # cout = out[:, 1:2, :, :]
+
+        res = torch.exp(cout)  # Residual term
+        regl = torch.log(cout+1e-16)  # Regularization term
+
+        # Pick only valid pixels
+        valid_mask = (targets['proj_mask'] > 0).detach()
+        valid_mask = valid_mask.unsqueeze(1).repeat(1,5,1,1)
+        # valid_mask = valid_mask.unsqueeze(1)
+        targets = targets['proj'][:,:5,:,:][valid_mask]
+        means = means[valid_mask]
+        res = res[valid_mask]
+        regl = regl[valid_mask]
+
+        loss = torch.mean(res * torch.pow(targets - means, 2) - regl)
+        return loss
+
+
+class MaskedProbExpLossOld(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, out, targets):
         means = out[:, :1, :, :]
         cout = out[:, 1:2, :, :]
 

@@ -32,10 +32,16 @@ class CarlaDataset(Dataset):
         self.hflip = hflip # False
         self.sensor = sensor # 'kitti' for velodyne with 64 channels
 
-        if setname in ['train', 'val']:
+        if setname in ['train', 'valid']:
             depth_path = os.path.join(self.kitti_depth_path, setname)
-            self.depth = np.array(sorted(glob.glob(os.path.join(depth_path, sensor+'_velodyne') + '/*.bin', recursive=True)))
-            self.gt = np.array(sorted(glob.glob(os.path.join(depth_path, 'velodyne') + '/*.bin', recursive=True)))
+            if self.sensor == 'both':
+                self.depth = np.array(sorted(glob.glob(os.path.join(depth_path, 'nusc_velodyne') + '/*.bin', recursive=True)))
+                self.gt = np.array(sorted(glob.glob(os.path.join(depth_path, 'velodyne') + '/*.bin', recursive=True)))
+                self.depth = np.concatenate((self.depth, np.array(sorted(glob.glob(os.path.join(depth_path, 'kitti_velodyne') + '/*.bin', recursive=True)))), axis=0)
+                self.gt = np.concatenate((self.gt, np.array(sorted(glob.glob(os.path.join(depth_path, 'velodyne') + '/*.bin', recursive=True)))), axis=0)
+            else:
+                self.depth = np.array(sorted(glob.glob(os.path.join(depth_path, sensor+'_velodyne') + '/*.bin', recursive=True)))
+                self.gt = np.array(sorted(glob.glob(os.path.join(depth_path, 'velodyne') + '/*.bin', recursive=True)))
         elif setname == 'selval': # richard: not yet modified
             depth_path = os.path.join(self.kitti_depth_path, 'depth_selection', 'val_selection_cropped')
             self.depth = np.array(sorted(glob.glob(depth_path + "/velodyne_raw/*.png", recursive=True)))
@@ -47,40 +53,22 @@ class CarlaDataset(Dataset):
 
         assert(len(self.gt) == len(self.depth))
 
-        self.sensor_fov_up = 10.0
-        self.sensor_fov_down = -30.0
-        self.max_points = 150000
+        self.sensor_fov_up = 15.0
+        self.sensor_fov_down = -15.0
+        self.max_points = 1097152
 
-        if self.sensor == 'kitti':
-            self.sensor_img_H = 64
-            self.sensor_img_W = 2048
-            self.sensor_img_means = torch.Tensor([0,0,0,0,0]) # richard update
-            self.sensor_img_stds = torch.Tensor([1,1,1,1,1]) # range, x, y, z, signal
-        else:
-            self.sensor_img_H = 64
-            self.sensor_img_W = 2048
-            self.sensor_img_means = torch.Tensor([0,0,0,0,0]) # richard update
-            self.sensor_img_stds = torch.Tensor([1,1,1,1,1]) # range, x, y, z, signal
-        self.gt_sensor_img_H = 128
-        self.gt_sensor_img_W = 4096
-        self.gt_sensor_fov_up = 10.0
-        self.gt_sensor_fov_down = -30.0
-        self.gt_max_points = 4000000
-        self.gt_sensor_img_means = torch.Tensor([0,0,0,0,0]) # richard update
-        self.gt_sensor_img_stds = torch.Tensor([1,1,1,1,1]) # range, x, y, z, signal
+        self.sensor_img_H = 64
+        self.sensor_img_W = 2048
+        self.sensor_img_means = torch.Tensor([35.2812,0.6171,0.3594,-0.2803,0.9102])
+        self.sensor_img_stds = torch.Tensor([21.2873,12.8124,11.4528,1.6485,0.2675]) # range, x, y, z, signal
 
-        # img_means: #range,x,y,z,signal
-        #   - 12.12
-        #   - 10.88
-        #   - 0.23
-        #   - -1.04
-        #   - 0.21
-        # img_stds: #range,x,y,z,signal
-        #   - 12.32
-        #   - 11.47
-        #   - 6.91
-        #   - 0.86
-        #   - 0.16
+        self.gt_sensor_img_H = 64
+        self.gt_sensor_img_W = 2048
+        self.gt_sensor_fov_up = 15.0
+        self.gt_sensor_fov_down = -15.0
+        self.gt_max_points = 1097152
+        self.gt_sensor_img_means = torch.Tensor([35.2812,0.6171,0.3594,-0.2803,0.9102])
+        self.gt_sensor_img_stds = torch.Tensor([21.2873,12.8124,11.4528,1.6485,0.2675])
 
     def __len__(self):
         return len(self.depth)
@@ -94,15 +82,15 @@ class CarlaDataset(Dataset):
         rot = False
         drop_points = False
         # richard looks into this
-        # if self.transform:
-        #     if random.random() > 0.5:
-        #         if random.random() > 0.5:
-        #             DA = True
-        #         if random.random() > 0.5:
-        #             flip_sign = True
-        #         if random.random() > 0.5:
-        #             rot = True
-        #         drop_points = random.uniform(0, 0.5)
+        if self.transform:
+            if random.random() > 0.5:
+                # if random.random() > 0.5:
+                #     DA = True
+                if random.random() > 0.5:
+                    flip_sign = True
+                # if random.random() > 0.5:
+                #     rot = True
+                # drop_points = random.uniform(0, 0.5)
 
         depth_path = self.depth[item]
         depth_scan = LaserScan(project=True,
@@ -148,19 +136,31 @@ class CarlaDataset(Dataset):
         path_seq = path_split[-3]
         path_name = path_split[-1].replace(".bin", ".label")
         input = dict()
+        proj[0] += 1.6433
+        proj[1] += 6.2918
+        proj[2] += 7.0150
+        proj[3] += 4.9339
+        proj[4] += 0.6881
+        proj[0] /= 1.6433 + 2.1008
+        proj[1] /= 6.2918 + 6.1954
+        proj[2] /= 7.0150 + 6.9538
+        proj[3] /= 4.9339 + 12.7296
+        proj[4] /= 0.6881 + 0.3313
+        proj *= proj_mask.unsqueeze(0)
         input['proj'] = proj
         input['proj_mask'] = proj_mask
-        input['path_seq'] = path_seq
-        input['path_name'] = path_name
-        input['proj_x'] = proj_x
-        input['proj_y'] = proj_y
-        input['proj_range'] = proj_range
-        input['unproj_range'] = unproj_range
-        input['proj_xyz'] = proj_xyz
-        input['unproj_xyz'] = unproj_xyz
-        input['proj_remission'] = proj_remission
-        input['unproj_remissions'] = unproj_remissions
-        input['unproj_n_points'] = unproj_n_points
+        input['depth_path'] = depth_path
+        # input['path_seq'] = path_seq
+        # input['path_name'] = path_name
+        # input['proj_x'] = proj_x
+        # input['proj_y'] = proj_y
+        # input['proj_range'] = proj_range
+        # input['unproj_range'] = unproj_range
+        # input['proj_xyz'] = proj_xyz
+        # input['unproj_xyz'] = unproj_xyz
+        # input['proj_remission'] = proj_remission
+        # input['unproj_remissions'] = unproj_remissions
+        # input['unproj_n_points'] = unproj_n_points
 
         gt_path = self.gt[item]
         gt_scan = LaserScan(project=True,
@@ -171,7 +171,8 @@ class CarlaDataset(Dataset):
                          DA=False,
                          rot=False,
                          flip_sign=False,
-                         drop_points=False)
+                         drop_points=False,
+                         six=True)
 
         # open and obtain scan
         gt_scan.open_scan(gt_path)
@@ -206,19 +207,30 @@ class CarlaDataset(Dataset):
         path_seq = path_split[-3]
         path_name = path_split[-1].replace(".bin", ".label")
         gt = dict()
+        proj[0] += 1.6433
+        proj[1] += 6.2918
+        proj[2] += 7.0150
+        proj[3] += 4.9339
+        proj[4] += 0.6881
+        proj[0] /= 1.6433 + 2.1008
+        proj[1] /= 6.2918 + 6.1954
+        proj[2] /= 7.0150 + 6.9538
+        proj[3] /= 4.9339 + 12.7296
+        proj[4] /= 0.6881 + 0.3313
+        proj *= proj_mask.unsqueeze(0)
         gt['proj'] = proj
         gt['proj_mask'] = proj_mask
-        gt['path_seq'] = path_seq
-        gt['path_name'] = path_name
-        gt['proj_x'] = proj_x
-        gt['proj_y'] = proj_y
-        gt['proj_range'] = proj_range
-        gt['unproj_range'] = unproj_range
-        gt['proj_xyz'] = proj_xyz
-        gt['unproj_xyz'] = unproj_xyz
-        gt['proj_remission'] = proj_remission
-        gt['unproj_remissions'] = unproj_remissions
-        gt['unproj_n_points'] = unproj_n_points
+        # gt['path_seq'] = path_seq
+        # gt['path_name'] = path_name
+        # gt['proj_x'] = proj_x
+        # gt['proj_y'] = proj_y
+        # gt['proj_range'] = proj_range
+        # gt['unproj_range'] = unproj_range
+        # gt['proj_xyz'] = proj_xyz
+        # gt['unproj_xyz'] = unproj_xyz
+        # gt['proj_remission'] = proj_remission
+        # gt['unproj_remissions'] = unproj_remissions
+        # gt['unproj_n_points'] = unproj_n_points
 
         # # Read depth input and gt
         # depth = Image.open(self.depth[item])
